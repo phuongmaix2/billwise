@@ -30,6 +30,9 @@ export default function GroupDetailsScreen({ route }: any) {
     const [memberName, setMemberName] = useState("");
 
     const [paidBy, setPaidBy] = useState("");
+    const [settlements, setSettlements] = useState<
+        { from: string; to: string; amount: number }[]
+    >([]);
 
     const addExpense = () => {
         const value = Number(amount);
@@ -80,6 +83,7 @@ export default function GroupDetailsScreen({ route }: any) {
     };
 
 
+
     const calculateBalance = (member: string) => {
         let balance = 0;
 
@@ -91,9 +95,51 @@ export default function GroupDetailsScreen({ route }: any) {
             }
         });
 
+        settlements.forEach((settlement) => {
+            if (settlement.from === member) {
+                balance += settlement.amount;
+            }
+
+            if (settlement.to === member) {
+                balance -= settlement.amount;
+            }
+        });
+
         return balance;
     };
 
+
+
+    const calculateDebts = () => {
+        const creditors = members
+            .map((name) => ({ name, balance: calculateBalance(name) }))
+            .filter((person) => person.balance > 0.001);
+
+        const debtors = members
+            .map((name) => ({ name, balance: -calculateBalance(name) }))
+            .filter((person) => person.balance > 0.001);
+
+        const debts = [];
+
+        for (const debtor of debtors) {
+            for (const creditor of creditors) {
+                const amount = Math.min(debtor.balance, creditor.balance);
+
+                if (amount > 0.001) {
+                    debts.push({
+                        from: debtor.name,
+                        to: creditor.name,
+                        amount: amount,
+                    });
+
+                    debtor.balance -= amount;
+                    creditor.balance -= amount;
+                }
+            }
+        }
+
+        return debts;
+    };
 
     return (
         <ScrollView style={styles.container}>
@@ -118,37 +164,44 @@ export default function GroupDetailsScreen({ route }: any) {
                 </Text>
             ))}
 
+            {
+                members.length > 0 &&
+                (
+                    <View>
 
-            <Text style={{ marginBottom: 10 }}>Paid by:</Text>
+                        <Text style={styles.subtitle}>Add Expense</Text>
+                        <Text style={{ marginBottom: 10 }}>Paid by:</Text>
 
-            {members.map((member) => (
-                <Button
-                    key={member}
-                    title={`${paidBy === member ? "✓ " : ""}${member}`}
-                    onPress={() => setPaidBy(member)}
-                />
-            ))}
+                        {members.map((member) => (
+                            <Button
+                                key={member}
+                                title={`${paidBy === member ? "✓ " : ""}${member}`}
+                                onPress={() => setPaidBy(member)}
+                            />
 
-            <Text style={styles.subtitle}>Add Expense</Text>
+                        ))};
 
-            <TextInput
-                style={styles.input}
-                placeholder="Description"
-                value={description}
-                onChangeText={setDescription}
-            />
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Description"
+                            value={description}
+                            onChangeText={setDescription}
+                        />
 
-            <TextInput
-                style={styles.input}
-                placeholder="Amount (€)"
-                keyboardType="decimal-pad"
-                value={amount}
-                onChangeText={setAmount}
-            />
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Amount (€)"
+                            keyboardType="decimal-pad"
+                            value={amount}
+                            onChangeText={setAmount}
+                        />
 
-            <Button title="Add Expense" onPress={addExpense} />
+                        <Button title="Add Expense" onPress={addExpense} />
 
-            <Text style={styles.subtitle}>Expenses</Text>
+                        <Text style={styles.subtitle}>Expenses</Text>
+                    </View>
+                )
+            }
 
             {expenses.map((item) => (
                 <View key={item.id} style={styles.card}>
@@ -160,22 +213,53 @@ export default function GroupDetailsScreen({ route }: any) {
 
                     <Button
                         title="Delete"
+                        color="red"
                         onPress={() => deleteExpense(item.id)}
                     />
                 </View>
             ))}
 
+            {
+                members.length > 0 &&
+                (
+                    <View>
 
-            <Text style={styles.subtitle}>Member Balances</Text>
+                        <Text style={styles.subtitle}>Member Balances</Text>
 
-            {members.map((member) => (
-                <View key={member} style={styles.member}>
-                    <Text>{member}</Text>
-                    <Text>
-                        Balance: €{calculateBalance(member).toFixed(2)}
-                    </Text>
-                </View>
-            ))}
+                        {members.map((member) => (
+                            <View key={member} style={styles.member}>
+                                <Text>{member}</Text>
+                                <Text>
+                                    Balance: €{calculateBalance(member).toFixed(2)}
+                                </Text>
+                            </View>
+                        ))}
+
+                        <Text style={styles.subtitle}>Who Owes Whom</Text>
+
+                        {calculateDebts().map((debt, index) => (
+                            <View key={index} style={styles.member}>
+                                <Text>
+                                    {debt.from} owes {debt.to} €{debt.amount.toFixed(2)}
+                                </Text>
+
+                                <Button
+                                    title="Settle"
+                                    onPress={() => {
+                                        setSettlements([
+                                            ...settlements,
+                                            {
+                                                from: debt.from,
+                                                to: debt.to,
+                                                amount: debt.amount,
+                                            },
+                                        ]);
+                                    }}
+                                />
+                            </View>
+                        ))}
+                    </View>
+                )}
 
         </ScrollView>
     );
