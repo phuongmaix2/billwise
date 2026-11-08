@@ -5,14 +5,19 @@ import {
     TextInput,
     Button,
     FlatList,
+    ScrollView,
     StyleSheet,
 } from "react-native";
+
 
 type Expense = {
     id: string;
     description: string;
     amount: number;
+    paidBy: string;
+    splitAmount: number;
 };
+
 
 export default function GroupDetailsScreen({ route }: any) {
     const { group } = route.params;
@@ -21,23 +26,32 @@ export default function GroupDetailsScreen({ route }: any) {
     const [description, setDescription] = useState("");
     const [amount, setAmount] = useState("");
 
+    const [members, setMembers] = useState<string[]>([]);
+    const [memberName, setMemberName] = useState("");
+
+    const [paidBy, setPaidBy] = useState("");
+
     const addExpense = () => {
         const value = Number(amount);
 
-        if (!description.trim() || !amount.trim() || !Number.isFinite(value) || value <= 0) {
+        if (!description.trim() || value <= 0 || !paidBy || members.length === 0) {
             return;
         }
 
         const newExpense = {
             id: Date.now().toString(),
-            description: description.trim(),
+            description: description,
             amount: value,
+            paidBy: paidBy,
+            splitAmount: value / members.length,
         };
 
         setExpenses([...expenses, newExpense]);
         setDescription("");
         setAmount("");
+        setPaidBy("");
     };
+
 
     const deleteExpense = (id: string) => {
         setExpenses((currentExpenses) =>
@@ -51,10 +65,69 @@ export default function GroupDetailsScreen({ route }: any) {
         0
     );
 
+
+    const addMember = () => {
+        const name = memberName.trim();
+
+        if (!name) return;
+
+        if (members.some((member) =>
+            member.toLowerCase() === name.toLowerCase()
+        )) return;
+
+        setMembers([...members, name]);
+        setMemberName("");
+    };
+
+
+    const calculateBalance = (member: string) => {
+        let balance = 0;
+
+        expenses.forEach((expense) => {
+            balance -= expense.splitAmount;
+
+            if (expense.paidBy === member) {
+                balance += expense.amount;
+            }
+        });
+
+        return balance;
+    };
+
+
     return (
-        <View style={styles.container}>
+        <ScrollView style={styles.container}>
             <Text style={styles.title}>{group.name}</Text>
-            <Text>{group.members} members</Text>
+
+            <Text>{members.length} members</Text>
+
+            <Text style={styles.subtitle}>Group Members</Text>
+
+            <TextInput
+                style={styles.input}
+                placeholder="Member name"
+                value={memberName}
+                onChangeText={setMemberName}
+            />
+
+            <Button title="Add Member" onPress={addMember} />
+
+            {members.map((member) => (
+                <Text key={member} style={styles.member}>
+                    {member}
+                </Text>
+            ))}
+
+
+            <Text style={{ marginBottom: 10 }}>Paid by:</Text>
+
+            {members.map((member) => (
+                <Button
+                    key={member}
+                    title={`${paidBy === member ? "✓ " : ""}${member}`}
+                    onPress={() => setPaidBy(member)}
+                />
+            ))}
 
             <Text style={styles.subtitle}>Add Expense</Text>
 
@@ -77,32 +150,34 @@ export default function GroupDetailsScreen({ route }: any) {
 
             <Text style={styles.subtitle}>Expenses</Text>
 
-
-            <FlatList
-                data={expenses}
-                keyExtractor={(item) => item.id}
-                ListEmptyComponent={<Text>No expenses yet.</Text>}
-                renderItem={({ item }) => (
-                    <View style={styles.card}>
-                        <View>
-                            <Text>{item.description}</Text>
-                            <Text>€{item.amount.toFixed(2)}</Text>
-                        </View>
-
-                        <Button
-                            title="Delete"
-                            color="red"
-                            onPress={() => deleteExpense(item.id)}
-                        />
+            {expenses.map((item) => (
+                <View key={item.id} style={styles.card}>
+                    <View>
+                        <Text>{item.description} - €{item.amount.toFixed(2)}</Text>
+                        <Text>Paid by: {item.paidBy}</Text>
+                        <Text>Each person: €{item.splitAmount.toFixed(2)}</Text>
                     </View>
-                )}
-            />
+
+                    <Button
+                        title="Delete"
+                        onPress={() => deleteExpense(item.id)}
+                    />
+                </View>
+            ))}
 
 
-            <Text style={styles.total}>
-                Total: €{total.toFixed(2)}
-            </Text>
-        </View>
+            <Text style={styles.subtitle}>Member Balances</Text>
+
+            {members.map((member) => (
+                <View key={member} style={styles.member}>
+                    <Text>{member}</Text>
+                    <Text>
+                        Balance: €{calculateBalance(member).toFixed(2)}
+                    </Text>
+                </View>
+            ))}
+
+        </ScrollView>
     );
 }
 
@@ -128,6 +203,13 @@ const styles = StyleSheet.create({
         padding: 12,
         borderRadius: 8,
         marginBottom: 10,
+    },
+    member: {
+        fontSize: 16,
+        padding: 10,
+        backgroundColor: "#f2f2f2",
+        marginTop: 8,
+        borderRadius: 8,
     },
     card: {
         padding: 15,
