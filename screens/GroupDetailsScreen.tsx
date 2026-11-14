@@ -140,6 +140,12 @@ export default function GroupDetailsScreen({ route }: any) {
         return balance;
     };
 
+    const calculateCategoryTotal = (category: string) => {
+        return expenses
+            .filter((expense) => expense.category === category)
+            .reduce((sum, expense) => sum + expense.amount, 0);
+    };
+
     const calculateDebts = () => {
         const creditors = members
             .map((name) => ({ name, balance: calculateBalance(name) }))
@@ -378,10 +384,24 @@ export default function GroupDetailsScreen({ route }: any) {
                         {settlements.map((settlement, index) => (
                             <View key={index} style={styles.member}>
                                 <Text>
-                                    {settlement.from} paid {settlement.to} €{settlement.amount.toFixed(2)}
+                                    {settlement.from} paid {settlement.to} €
+                                    {settlement.amount.toFixed(2)}
                                 </Text>
                             </View>
                         ))}
+                        <Text style={styles.subtitle}>Expense Statistics</Text>
+
+                        {["Food", "Transport", "Shopping", "Other"].map((category) => (
+                            <View key={category} style={styles.member}>
+                                <Text>
+                                    {category}: €{calculateCategoryTotal(category).toFixed(2)}
+                                </Text>
+                            </View>
+                        ))}
+
+                        <Text style={styles.total}>
+                            Total Expenses: €{total.toFixed(2)}
+                        </Text>
                     </View>
                 )}
 
