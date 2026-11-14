@@ -17,6 +17,7 @@ type Expense = {
     paidBy: string;
     splitAmount: number;
     participants: string[];
+    category: string;
 };
 
 
@@ -31,6 +32,7 @@ export default function GroupDetailsScreen({ route }: any) {
     const [members, setMembers] = useState<string[]>([]);
     const [memberName, setMemberName] = useState("");
     const [participants, setParticipants] = useState<string[]>(members);
+    const [category, setCategory] = useState("Other");
 
     const [paidBy, setPaidBy] = useState("");
     const [settlements, setSettlements] = useState<
@@ -62,6 +64,7 @@ export default function GroupDetailsScreen({ route }: any) {
                         paidBy: paidBy,
                         splitAmount: value / participants.length,
                         participants: [...participants],
+                        category: category,
                     }
                     : expense
             ));
@@ -73,6 +76,7 @@ export default function GroupDetailsScreen({ route }: any) {
                 paidBy: paidBy,
                 splitAmount: value / participants.length,
                 participants: [...participants],
+                category: category,
             };
 
             setExpenses([...expenses, newExpense]);
@@ -83,9 +87,8 @@ export default function GroupDetailsScreen({ route }: any) {
         setPaidBy("");
         setEditingId(null);
         setParticipants([...members]);
+        setCategory("Other");
     };
-
-
 
     const deleteExpense = (id: string) => {
         setExpenses((currentExpenses) =>
@@ -137,9 +140,6 @@ export default function GroupDetailsScreen({ route }: any) {
         return balance;
     };
 
-
-
-
     const calculateDebts = () => {
         const creditors = members
             .map((name) => ({ name, balance: calculateBalance(name) }))
@@ -177,6 +177,7 @@ export default function GroupDetailsScreen({ route }: any) {
         setAmount(expense.amount.toString());
         setPaidBy(expense.paidBy);
         setParticipants(expense.participants);
+        setCategory("Other");
     };
 
 
@@ -186,6 +187,7 @@ export default function GroupDetailsScreen({ route }: any) {
         setAmount("");
         setPaidBy("");
         setParticipants([...members]);
+        setCategory("Other");
     };
 
 
@@ -251,18 +253,28 @@ export default function GroupDetailsScreen({ route }: any) {
                             onChangeText={setAmount}
                         />
 
+                        <Text style={styles.subtitle}>Category</Text>
+
+                        {["Food", "Transport", "Shopping", "Other"].map((item) => (
+                            <Button
+                                key={item}
+                                title={`${category === item ? "✓ " : ""}${item}`}
+                                onPress={() => setCategory(item)}
+                            />
+                        ))}
 
                         <Button
                             title={editingId ? "Save Changes" : "Add Expense"}
                             onPress={addExpense}
+                            color="gray"
                         />
 
                         {editingId !== null && (
-                                <Button
-                                    title="Cancel Edit"
-                                    color="gray"
-                                    onPress={cancelEdit}
-                                />
+                            <Button
+                                title="Cancel Edit"
+                                color="gray"
+                                onPress={cancelEdit}
+                            />
                         )}
 
                         <Text style={styles.subtitle}>Split Between</Text>
@@ -301,6 +313,7 @@ export default function GroupDetailsScreen({ route }: any) {
                     <View>
                         <Text>{item.description} - €{item.amount.toFixed(2)}</Text>
                         <Text>Paid by: {item.paidBy}</Text>
+                        <Text>Category: {item.category}</Text>
                         <Text>Each person: €{item.splitAmount.toFixed(2)}</Text>
                         <Text>Split between: {item.participants.join(", ")}</Text>
                     </View>
