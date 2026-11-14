@@ -25,6 +25,7 @@ export default function GroupDetailsScreen({ route }: any) {
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [description, setDescription] = useState("");
     const [amount, setAmount] = useState("");
+    const [editingId, setEditingId] = useState<string | null>(null);
 
     const [members, setMembers] = useState<string[]>([]);
     const [memberName, setMemberName] = useState("");
@@ -34,26 +35,51 @@ export default function GroupDetailsScreen({ route }: any) {
         { from: string; to: string; amount: number }[]
     >([]);
 
+
     const addExpense = () => {
         const value = Number(amount);
 
-        if (!description.trim() || value <= 0 || !paidBy || members.length === 0) {
+        if (
+            !description.trim() ||
+            !amount.trim() ||
+            !Number.isFinite(value) ||
+            value <= 0 ||
+            !paidBy ||
+            members.length === 0
+        ) {
             return;
         }
 
-        const newExpense = {
-            id: Date.now().toString(),
-            description: description,
-            amount: value,
-            paidBy: paidBy,
-            splitAmount: value / members.length,
-        };
+        if (editingId) {
+            setExpenses(expenses.map((expense) =>
+                expense.id === editingId
+                    ? {
+                        ...expense,
+                        description: description.trim(),
+                        amount: value,
+                        paidBy: paidBy,
+                        splitAmount: value / members.length,
+                    }
+                    : expense
+            ));
+        } else {
+            const newExpense = {
+                id: Date.now().toString(),
+                description: description.trim(),
+                amount: value,
+                paidBy: paidBy,
+                splitAmount: value / members.length,
+            };
 
-        setExpenses([...expenses, newExpense]);
+            setExpenses([...expenses, newExpense]);
+        }
+
         setDescription("");
         setAmount("");
         setPaidBy("");
+        setEditingId(null);
     };
+
 
 
     const deleteExpense = (id: string) => {
@@ -141,6 +167,13 @@ export default function GroupDetailsScreen({ route }: any) {
         return debts;
     };
 
+    const editExpense = (expense: Expense) => {
+        setEditingId(expense.id);
+        setDescription(expense.description);
+        setAmount(expense.amount.toString());
+        setPaidBy(expense.paidBy);
+    };
+
     return (
         <ScrollView style={styles.container}>
             <Text style={styles.title}>{group.name}</Text>
@@ -196,7 +229,10 @@ export default function GroupDetailsScreen({ route }: any) {
                             onChangeText={setAmount}
                         />
 
-                        <Button title="Add Expense" onPress={addExpense} />
+                        <Button
+                            title={editingId ? "Save Changes" : "Add Expense"}
+                            onPress={addExpense}
+                        />
 
                         <Text style={styles.subtitle}>Expenses</Text>
                     </View>
@@ -210,6 +246,11 @@ export default function GroupDetailsScreen({ route }: any) {
                         <Text>Paid by: {item.paidBy}</Text>
                         <Text>Each person: €{item.splitAmount.toFixed(2)}</Text>
                     </View>
+
+                    <Button
+                        title="Edit"
+                        onPress={() => editExpense(item)}
+                    />
 
                     <Button
                         title="Delete"
