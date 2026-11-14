@@ -16,6 +16,7 @@ type Expense = {
     amount: number;
     paidBy: string;
     splitAmount: number;
+    participants: string[];
 };
 
 
@@ -29,6 +30,7 @@ export default function GroupDetailsScreen({ route }: any) {
 
     const [members, setMembers] = useState<string[]>([]);
     const [memberName, setMemberName] = useState("");
+    const [participants, setParticipants] = useState<string[]>([]);
 
     const [paidBy, setPaidBy] = useState("");
     const [settlements, setSettlements] = useState<
@@ -45,7 +47,7 @@ export default function GroupDetailsScreen({ route }: any) {
             !Number.isFinite(value) ||
             value <= 0 ||
             !paidBy ||
-            members.length === 0
+            participants.length === 0
         ) {
             return;
         }
@@ -58,7 +60,8 @@ export default function GroupDetailsScreen({ route }: any) {
                         description: description.trim(),
                         amount: value,
                         paidBy: paidBy,
-                        splitAmount: value / members.length,
+                        splitAmount: value / participants.length,
+                        participants: [...participants],
                     }
                     : expense
             ));
@@ -68,7 +71,8 @@ export default function GroupDetailsScreen({ route }: any) {
                 description: description.trim(),
                 amount: value,
                 paidBy: paidBy,
-                splitAmount: value / members.length,
+                splitAmount: value / participants.length,
+                participants: [...participants],
             };
 
             setExpenses([...expenses, newExpense]);
@@ -78,6 +82,7 @@ export default function GroupDetailsScreen({ route }: any) {
         setAmount("");
         setPaidBy("");
         setEditingId(null);
+        setParticipants([]);
     };
 
 
@@ -114,7 +119,9 @@ export default function GroupDetailsScreen({ route }: any) {
         let balance = 0;
 
         expenses.forEach((expense) => {
-            balance -= expense.splitAmount;
+            if (expense.participants.includes(member)) {
+                balance -= expense.splitAmount;
+            }
 
             if (expense.paidBy === member) {
                 balance += expense.amount;
@@ -172,6 +179,15 @@ export default function GroupDetailsScreen({ route }: any) {
         setDescription(expense.description);
         setAmount(expense.amount.toString());
         setPaidBy(expense.paidBy);
+        setParticipants(expense.participants);
+    };
+
+    const toggleParticipant = (member: string) => {
+        if (participants.includes(member)) {
+            setParticipants(participants.filter((p) => p !== member));
+        } else {
+            setParticipants([...participants, member]);
+        }
     };
 
     return (
@@ -201,6 +217,16 @@ export default function GroupDetailsScreen({ route }: any) {
                 members.length > 0 &&
                 (
                     <View>
+
+                        <Text style={styles.subtitle}>Split Between</Text>
+
+                        {members.map((member) => (
+                            <Button
+                                key={member}
+                                title={`${participants.includes(member) ? "✓ " : ""}${member}`}
+                                onPress={() => toggleParticipant(member)}
+                            />
+                        ))}
 
                         <Text style={styles.subtitle}>Add Expense</Text>
                         <Text style={{ marginBottom: 10 }}>Paid by:</Text>
@@ -245,6 +271,7 @@ export default function GroupDetailsScreen({ route }: any) {
                         <Text>{item.description} - €{item.amount.toFixed(2)}</Text>
                         <Text>Paid by: {item.paidBy}</Text>
                         <Text>Each person: €{item.splitAmount.toFixed(2)}</Text>
+                        <Text>Split between: {item.participants.join(", ")}</Text>
                     </View>
 
                     <Button
