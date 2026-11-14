@@ -237,6 +237,22 @@ export default function GroupDetailsScreen({ route }: any) {
 
                         <Text style={styles.subtitle}>Who Owes Whom</Text>
 
+
+                        <Text style={styles.subtitle}>Settlement History</Text>
+
+                        {settlements.length === 0 && (
+                            <Text>No settlements yet.</Text>
+                        )}
+
+                        {settlements.map((settlement, index) => (
+                            <View key={index} style={styles.member}>
+                                <Text>
+                                    {settlement.from} paid {settlement.to} €{settlement.amount.toFixed(2)}
+                                </Text>
+                            </View>
+                        ))}
+
+
                         {calculateDebts().map((debt, index) => (
                             <View key={index} style={styles.member}>
                                 <Text>
