@@ -30,7 +30,7 @@ export default function GroupDetailsScreen({ route }: any) {
 
     const [members, setMembers] = useState<string[]>([]);
     const [memberName, setMemberName] = useState("");
-    const [participants, setParticipants] = useState<string[]>([]);
+    const [participants, setParticipants] = useState<string[]>(members);
 
     const [paidBy, setPaidBy] = useState("");
     const [settlements, setSettlements] = useState<
@@ -82,7 +82,7 @@ export default function GroupDetailsScreen({ route }: any) {
         setAmount("");
         setPaidBy("");
         setEditingId(null);
-        setParticipants([]);
+        setParticipants([...members]);
     };
 
 
@@ -103,16 +103,12 @@ export default function GroupDetailsScreen({ route }: any) {
     const addMember = () => {
         const name = memberName.trim();
 
-        if (!name) return;
-
-        if (members.some((member) =>
-            member.toLowerCase() === name.toLowerCase()
-        )) return;
+        if (!name || members.includes(name)) return;
 
         setMembers([...members, name]);
+        setParticipants([...participants, name]);
         setMemberName("");
     };
-
 
 
     const calculateBalance = (member: string) => {
@@ -140,6 +136,7 @@ export default function GroupDetailsScreen({ route }: any) {
 
         return balance;
     };
+
 
 
 
@@ -182,6 +179,16 @@ export default function GroupDetailsScreen({ route }: any) {
         setParticipants(expense.participants);
     };
 
+
+    const cancelEdit = () => {
+        setEditingId(null);
+        setDescription("");
+        setAmount("");
+        setPaidBy("");
+        setParticipants([...members]);
+    };
+
+
     const toggleParticipant = (member: string) => {
         if (participants.includes(member)) {
             setParticipants(participants.filter((p) => p !== member));
@@ -217,17 +224,6 @@ export default function GroupDetailsScreen({ route }: any) {
                 members.length > 0 &&
                 (
                     <View>
-
-                        <Text style={styles.subtitle}>Split Between</Text>
-
-                        {members.map((member) => (
-                            <Button
-                                key={member}
-                                title={`${participants.includes(member) ? "✓ " : ""}${member}`}
-                                onPress={() => toggleParticipant(member)}
-                            />
-                        ))}
-
                         <Text style={styles.subtitle}>Add Expense</Text>
                         <Text style={{ marginBottom: 10 }}>Paid by:</Text>
 
@@ -255,10 +251,45 @@ export default function GroupDetailsScreen({ route }: any) {
                             onChangeText={setAmount}
                         />
 
+
                         <Button
                             title={editingId ? "Save Changes" : "Add Expense"}
                             onPress={addExpense}
                         />
+
+                        {editingId !== null && (
+                                <Button
+                                    title="Cancel Edit"
+                                    color="gray"
+                                    onPress={cancelEdit}
+                                />
+                        )}
+
+                        <Text style={styles.subtitle}>Split Between</Text>
+
+                        {members.map((member) => (
+                            <Button
+                                key={member}
+                                title={`${participants.includes(member) ? "✓ " : ""}${member}`}
+                                onPress={() => toggleParticipant(member)}
+                            />
+                        ))}
+
+
+                        <Text>
+                            {participants.length} of {members.length} members selected
+                        </Text>
+
+                        {amount.trim() !== "" &&
+                            Number.isFinite(Number(amount)) &&
+                            Number(amount) > 0 &&
+                            participants.length > 0 && (
+                                <Text>
+                                    Each person pays: €
+                                    {(Number(amount) / participants.length).toFixed(2)}
+                                </Text>
+                            )}
+
 
                         <Text style={styles.subtitle}>Expenses</Text>
                     </View>
@@ -304,23 +335,6 @@ export default function GroupDetailsScreen({ route }: any) {
                         ))}
 
                         <Text style={styles.subtitle}>Who Owes Whom</Text>
-
-
-                        <Text style={styles.subtitle}>Settlement History</Text>
-
-                        {settlements.length === 0 && (
-                            <Text>No settlements yet.</Text>
-                        )}
-
-                        {settlements.map((settlement, index) => (
-                            <View key={index} style={styles.member}>
-                                <Text>
-                                    {settlement.from} paid {settlement.to} €{settlement.amount.toFixed(2)}
-                                </Text>
-                            </View>
-                        ))}
-
-
                         {calculateDebts().map((debt, index) => (
                             <View key={index} style={styles.member}>
                                 <Text>
@@ -340,6 +354,19 @@ export default function GroupDetailsScreen({ route }: any) {
                                         ]);
                                     }}
                                 />
+                            </View>
+                        ))}
+                        <Text style={styles.subtitle}>Settlement History</Text>
+
+                        {settlements.length === 0 && (
+                            <Text>No settlements yet.</Text>
+                        )}
+
+                        {settlements.map((settlement, index) => (
+                            <View key={index} style={styles.member}>
+                                <Text>
+                                    {settlement.from} paid {settlement.to} €{settlement.amount.toFixed(2)}
+                                </Text>
                             </View>
                         ))}
                     </View>
