@@ -4,7 +4,6 @@ import {
     Text,
     TextInput,
     Button,
-    FlatList,
     ScrollView,
     StyleSheet,
 } from "react-native";
@@ -38,6 +37,8 @@ export default function GroupDetailsScreen({ route }: any) {
     const [settlements, setSettlements] = useState<
         { from: string; to: string; amount: number }[]
     >([]);
+
+    const [activeTab, setActiveTab] = useState<"Expenses" | "Summary">("Expenses");
 
 
     const addExpense = () => {
@@ -182,8 +183,8 @@ export default function GroupDetailsScreen({ route }: any) {
         setDescription(expense.description);
         setAmount(expense.amount.toString());
         setPaidBy(expense.paidBy);
-        setParticipants(expense.participants);
-        setCategory("Other");
+        setParticipants([...expense.participants]);
+        setCategory(expense.category);
     };
 
 
@@ -209,201 +210,221 @@ export default function GroupDetailsScreen({ route }: any) {
         <ScrollView style={styles.container}>
             <Text style={styles.title}>{group.name}</Text>
 
-            <Text>{members.length} members</Text>
+            <View style={styles.tabContainer}>
+                <Button
+                    title="Expenses"
+                    color={activeTab === "Expenses" ? "#2563eb" : "#888"}
+                    onPress={() => setActiveTab("Expenses")}
+                />
 
-            <Text style={styles.subtitle}>Group Members</Text>
+                <Button
+                    title="Summary"
+                    color={activeTab === "Summary" ? "#2563eb" : "#888"}
+                    onPress={() => setActiveTab("Summary")}
+                />
+            </View>
 
-            <TextInput
-                style={styles.input}
-                placeholder="Member name"
-                value={memberName}
-                onChangeText={setMemberName}
-            />
+            {activeTab === "Expenses" && (
+                <View>
 
-            <Button title="Add Member" onPress={addMember} />
+                    <Text>{members.length} members</Text>
 
-            {members.map((member) => (
-                <Text key={member} style={styles.member}>
-                    {member}
-                </Text>
-            ))}
+                    <Text style={styles.subtitle}>Group Members</Text>
 
-            {
-                members.length > 0 &&
-                (
-                    <View>
-                        <Text style={styles.subtitle}>Add Expense</Text>
-                        <Text style={{ marginBottom: 10 }}>Paid by:</Text>
+                    <TextInput
+                        style={styles.input}
+                        placeholder="Member name"
+                        value={memberName}
+                        onChangeText={setMemberName}
+                    />
 
-                        {members.map((member) => (
-                            <Button
-                                key={member}
-                                title={`${paidBy === member ? "✓ " : ""}${member}`}
-                                onPress={() => setPaidBy(member)}
-                            />
+                    <Button title="Add Member" onPress={addMember} />
 
-                        ))};
-
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Description"
-                            value={description}
-                            onChangeText={setDescription}
-                        />
-
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Amount (€)"
-                            keyboardType="decimal-pad"
-                            value={amount}
-                            onChangeText={setAmount}
-                        />
-
-                        <Text style={styles.subtitle}>Category</Text>
-
-                        {["Food", "Transport", "Shopping", "Other"].map((item) => (
-                            <Button
-                                key={item}
-                                title={`${category === item ? "✓ " : ""}${item}`}
-                                onPress={() => setCategory(item)}
-                            />
-                        ))}
-
-                        <Button
-                            title={editingId ? "Save Changes" : "Add Expense"}
-                            onPress={addExpense}
-                            color="gray"
-                        />
-
-                        {editingId !== null && (
-                            <Button
-                                title="Cancel Edit"
-                                color="gray"
-                                onPress={cancelEdit}
-                            />
-                        )}
-
-                        <Text style={styles.subtitle}>Split Between</Text>
-
-                        {members.map((member) => (
-                            <Button
-                                key={member}
-                                title={`${participants.includes(member) ? "✓ " : ""}${member}`}
-                                onPress={() => toggleParticipant(member)}
-                            />
-                        ))}
-
-
-                        <Text>
-                            {participants.length} of {members.length} members selected
+                    {members.map((member) => (
+                        <Text key={member} style={styles.member}>
+                            {member}
                         </Text>
+                    ))}
 
-                        {amount.trim() !== "" &&
-                            Number.isFinite(Number(amount)) &&
-                            Number(amount) > 0 &&
-                            participants.length > 0 && (
-                                <Text>
-                                    Each person pays: €
-                                    {(Number(amount) / participants.length).toFixed(2)}
-                                </Text>
-                            )}
+                    {
+                        members.length > 0 &&
+                        (
+                            <View>
+                                <Text style={styles.subtitle}>Add Expense</Text>
+                                <Text style={{ marginBottom: 10 }}>Paid by:</Text>
 
+                                {members.map((member) => (
+                                    <Button
+                                        key={member}
+                                        title={`${paidBy === member ? "✓ " : ""}${member}`}
+                                        onPress={() => setPaidBy(member)}
+                                    />
 
-                        <Text style={styles.subtitle}>Expenses</Text>
-                    </View>
-                )
-            }
+                                ))}
 
-            {expenses.map((item) => (
-                <View key={item.id} style={styles.card}>
-                    <View>
-                        <Text>{item.description} - €{item.amount.toFixed(2)}</Text>
-                        <Text>Paid by: {item.paidBy}</Text>
-                        <Text>Category: {item.category}</Text>
-                        <Text>Each person: €{item.splitAmount.toFixed(2)}</Text>
-                        <Text>Split between: {item.participants.join(", ")}</Text>
-                    </View>
-
-                    <Button
-                        title="Edit"
-                        onPress={() => editExpense(item)}
-                    />
-
-                    <Button
-                        title="Delete"
-                        color="red"
-                        onPress={() => deleteExpense(item.id)}
-                    />
-                </View>
-            ))}
-
-            {
-                members.length > 0 &&
-                (
-                    <View>
-
-                        <Text style={styles.subtitle}>Member Balances</Text>
-
-                        {members.map((member) => (
-                            <View key={member} style={styles.member}>
-                                <Text>{member}</Text>
-                                <Text>
-                                    Balance: €{calculateBalance(member).toFixed(2)}
-                                </Text>
-                            </View>
-                        ))}
-
-                        <Text style={styles.subtitle}>Who Owes Whom</Text>
-                        {calculateDebts().map((debt, index) => (
-                            <View key={index} style={styles.member}>
-                                <Text>
-                                    {debt.from} owes {debt.to} €{debt.amount.toFixed(2)}
-                                </Text>
-
-                                <Button
-                                    title="Settle"
-                                    onPress={() => {
-                                        setSettlements([
-                                            ...settlements,
-                                            {
-                                                from: debt.from,
-                                                to: debt.to,
-                                                amount: debt.amount,
-                                            },
-                                        ]);
-                                    }}
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Description"
+                                    value={description}
+                                    onChangeText={setDescription}
                                 />
-                            </View>
-                        ))}
-                        <Text style={styles.subtitle}>Settlement History</Text>
 
-                        {settlements.length === 0 && (
-                            <Text>No settlements yet.</Text>
-                        )}
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Amount (€)"
+                                    keyboardType="decimal-pad"
+                                    value={amount}
+                                    onChangeText={setAmount}
+                                />
 
-                        {settlements.map((settlement, index) => (
-                            <View key={index} style={styles.member}>
+                                <Text style={styles.subtitle}>Category</Text>
+
+                                {["Food", "Transport", "Shopping", "Other"].map((item) => (
+                                    <Button
+                                        key={item}
+                                        title={`${category === item ? "✓ " : ""}${item}`}
+                                        onPress={() => setCategory(item)}
+                                    />
+                                ))}
+
+                                <Text style={styles.subtitle}>Split Between</Text>
+
+                                {members.map((member) => (
+                                    <Button
+                                        key={member}
+                                        title={`${participants.includes(member) ? "✓ " : ""}${member}`}
+                                        onPress={() => toggleParticipant(member)}
+                                    />
+                                ))}
+
+
                                 <Text>
-                                    {settlement.from} paid {settlement.to} €
-                                    {settlement.amount.toFixed(2)}
+                                    {participants.length} of {members.length} members selected
                                 </Text>
-                            </View>
-                        ))}
-                        <Text style={styles.subtitle}>Expense Statistics</Text>
 
-                        {["Food", "Transport", "Shopping", "Other"].map((category) => (
-                            <View key={category} style={styles.member}>
-                                <Text>
-                                    {category}: €{calculateCategoryTotal(category).toFixed(2)}
-                                </Text>
-                            </View>
-                        ))}
+                                {amount.trim() !== "" &&
+                                    Number.isFinite(Number(amount)) &&
+                                    Number(amount) > 0 &&
+                                    participants.length > 0 && (
+                                        <Text>
+                                            Each person pays: €
+                                            {(Number(amount) / participants.length).toFixed(2)}
+                                        </Text>
+                                    )}
 
-                        <Text style={styles.total}>
-                            Total Expenses: €{total.toFixed(2)}
-                        </Text>
-                    </View>
-                )}
+
+                                <View style={{ marginTop: 15 }}>
+                                    <Button
+                                        title={editingId ? "Save Changes" : "Add Expense"}
+                                        onPress={addExpense}
+                                        color="#2563eb"
+                                    />
+                                    {editingId !== null && (
+                                        <View style={{ marginTop: 10 }}>
+                                            <Button
+                                                title="Cancel Edit"
+                                                color="gray"
+                                                onPress={cancelEdit}
+                                            />
+                                        </View>
+                                    )}
+                                </View>
+
+                                <Text style={styles.subtitle}>Expenses</Text>
+                            </View>
+                        )
+                    }
+
+                    {expenses.map((item) => (
+                        <View key={item.id} style={styles.card}>
+                            <View>
+                                <Text>{item.description} - €{item.amount.toFixed(2)}</Text>
+                                <Text>Paid by: {item.paidBy}</Text>
+                                <Text>Category: {item.category}</Text>
+                                <Text>Each person: €{item.splitAmount.toFixed(2)}</Text>
+                                <Text>Split between: {item.participants.join(", ")}</Text>
+                            </View>
+
+                            <Button
+                                title="Edit"
+                                onPress={() => editExpense(item)}
+                            />
+
+                            <Button
+                                title="Delete"
+                                color="red"
+                                onPress={() => deleteExpense(item.id)}
+                            />
+                        </View>
+                    ))}
+                </View>
+            )}
+
+            {activeTab === "Summary" && (
+                <View>
+
+                    <Text style={styles.subtitle}>Member Balances</Text>
+
+                    {members.map((member) => (
+                        <View key={member} style={styles.member}>
+                            <Text>{member}</Text>
+                            <Text>
+                                Balance: €{calculateBalance(member).toFixed(2)}
+                            </Text>
+                        </View>
+                    ))}
+
+                    <Text style={styles.subtitle}>Who Owes Whom</Text>
+                    {calculateDebts().map((debt, index) => (
+                        <View key={index} style={styles.member}>
+                            <Text>
+                                {debt.from} owes {debt.to} €{debt.amount.toFixed(2)}
+                            </Text>
+
+                            <Button
+                                title="Settle"
+                                onPress={() => {
+                                    setSettlements([
+                                        ...settlements,
+                                        {
+                                            from: debt.from,
+                                            to: debt.to,
+                                            amount: debt.amount,
+                                        },
+                                    ]);
+                                }}
+                            />
+                        </View>
+                    ))}
+                    <Text style={styles.subtitle}>Settlement History</Text>
+
+                    {settlements.length === 0 && (
+                        <Text>No settlements yet.</Text>
+                    )}
+
+                    {settlements.map((settlement, index) => (
+                        <View key={index} style={styles.member}>
+                            <Text>
+                                {settlement.from} paid {settlement.to} €
+                                {settlement.amount.toFixed(2)}
+                            </Text>
+                        </View>
+                    ))}
+                    <Text style={styles.subtitle}>Expense Statistics</Text>
+
+                    {["Food", "Transport", "Shopping", "Other"].map((category) => (
+                        <View key={category} style={styles.member}>
+                            <Text>
+                                {category}: €{calculateCategoryTotal(category).toFixed(2)}
+                            </Text>
+                        </View>
+                    ))}
+
+                    <Text style={styles.total}>
+                        Total Expenses: €{total.toFixed(2)}
+                    </Text>
+                </View>
+            )}
 
         </ScrollView>
     );
@@ -453,4 +474,15 @@ const styles = StyleSheet.create({
         marginTop: 15,
         marginBottom: 15,
     },
+
+    tabContainer: {
+        flexDirection: "row",
+        justifyContent: "space-around",
+        marginTop: 20,
+        marginBottom: 20,
+        padding: 10,
+        backgroundColor: "#f2f2f2",
+        borderRadius: 10,
+    },
+
 });
