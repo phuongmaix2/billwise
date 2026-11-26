@@ -23,6 +23,13 @@ type ExpenseResponse = {
     splitMethod: string,
     createdAt: string
 };
+type GroupMemberResponse = {
+    userId: number;
+    username: string;
+    email: string;
+    role: "OWNER" | "MEMBER";
+    joinedAt: string;
+};
 
 export default function GroupDetailsScreen() {
     const { id, name } = useLocalSearchParams<{
@@ -33,40 +40,50 @@ export default function GroupDetailsScreen() {
     const [expenses, setExpenses] = useState<ExpenseResponse[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState("");
+    const [members, setMembers] = useState<GroupMemberResponse[]>([]);
 
-    const loadExpenses = useCallback(async () => {
+    const loadGroupData = useCallback(async () => {
         if (!id) {
-            setError("Group is missing")
+            setError("Group ID is missing.");
             setIsLoading(false);
             return;
         }
+
         setError("");
         setIsLoading(true);
 
         try {
-            const data = await apiRequest<ExpenseResponse[]>(
-                `/api/v1/groups/${id}/expenses`
-            );
-            setExpenses(data);
+            const [expenseData, memberData] = await Promise.all([
+                apiRequest<ExpenseResponse[]>(
+                    `/api/v1/groups/${id}/expenses`
+                ),
+                apiRequest<GroupMemberResponse[]>(
+                    `/api/v1/groups/${id}/members`
+                ),
+            ]);
+
+            setExpenses(expenseData);
+            setMembers(memberData);
         } catch (error) {
             setError(
                 error instanceof Error
                     ? error.message
-                    : "Could not load expenses."
+                    : "Could not load group data."
             );
         } finally {
             setIsLoading(false);
         }
     }, [id]);
-    useEffect(() => {
 
-        void loadExpenses();
-    }, [loadExpenses]);
+    useEffect(() => {
+        void loadGroupData();
+    }, [loadGroupData]);
+
     if (isLoading) {
         return (
             <View style={styles.center}>
                 <ActivityIndicator size="large" color="#2563eb" />
-                <Text style={styles.loadingText}>Loading expenses...</Text>
+                <Text style={styles.loadingText}>Loading group...</Text>
             </View>
         );
     }
@@ -75,7 +92,7 @@ export default function GroupDetailsScreen() {
         return (
             <View style={styles.center}>
                 <Text style={styles.error}>{error}</Text>
-                <Button title="Try Again" onPress={loadExpenses} />
+                <Button title="Try Again" onPress={loadGroupData} />
             </View>
         );
     }
@@ -91,6 +108,28 @@ export default function GroupDetailsScreen() {
                 contentInsetAdjustmentBehavior="automatic"
                 contentContainerStyle={styles.list}
                 keyExtractor={(item) => item.id.toString()}
+                ListHeaderComponent={
+                    <View>
+                        <Text style={styles.sectionTitle}>Members</Text>
+
+                        {members.map((member) => (
+                            <View key={member.userId} style={styles.member}>
+                                <View>
+                                    <Text style={styles.memberName}>
+                                        {member.username}
+                                    </Text>
+                                    <Text style={styles.memberEmail}>
+                                        {member.email}
+                                    </Text>
+                                </View>
+
+                                <Text style={styles.role}>{member.role}</Text>
+                            </View>
+                        ))}
+
+                        <Text style={styles.sectionTitle}>Expenses</Text>
+                    </View>
+                }
                 ListEmptyComponent={
                     <Text style={styles.empty}>
                         This group has no expenses yet.
@@ -161,6 +200,34 @@ const styles = StyleSheet.create({
         fontSize: 17,
         color: "#2563eb",
         marginVertical: 6,
+    },
+    sectionTitle: {
+        fontSize: 20,
+        fontWeight: "bold",
+        marginTop: 8,
+        marginBottom: 12,
+    },
+    member: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: 14,
+        backgroundColor: "#eef4ff",
+        borderRadius: 10,
+        marginBottom: 10,
+    },
+    memberName: {
+        fontSize: 16,
+        fontWeight: "bold",
+    },
+    role: {
+        color: "#2563eb",
+        fontWeight: "bold",
+    },
+    memberEmail: {
+        fontSize: 14,
+        color: "#666",
+        marginTop: 2,
     },
 });
 
