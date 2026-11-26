@@ -167,24 +167,26 @@ export default function GroupsScreen() {
                                 params: {
                                     id: item.id.toString(),
                                     name: item.name,
+                                    currency: item.baseCurrency,
                                 },
                             })
                         }
                     >
-                        <Text style={styles.groupName}>{item.name}</Text>
+            <Text style={styles.groupName}>{item.name}</Text>
 
-                        {item.description ? (
-                            <Text style={styles.description}>
-                                {item.description}
-                            </Text>
-                        ) : null}
+            {item.description ? (
+                <Text style={styles.description}>
+                    {item.description}
+                </Text>
+            ) : null}
 
-                        <Text>Currency: {item.baseCurrency}</Text>
-                        <Text>Owner: {item.ownerUsername}</Text>
-                    </Pressable>
-                )}
+            <Text>Currency: {item.baseCurrency}</Text>
+            <Text>Owner: {item.ownerUsername}</Text>
+        </Pressable>
+    )
+}
             />
-        </View>
+        </View >
     );
 }
 
