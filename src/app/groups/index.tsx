@@ -7,9 +7,11 @@ import {
     Text,
     View,
     TextInput,
+    Pressable,
 } from "react-native";
 
 import { apiRequest } from "../../services/api";
+import { router } from "expo-router";
 
 type GroupResponse = {
     id: number;
@@ -157,7 +159,18 @@ export default function GroupsScreen() {
                     <Text style={styles.empty}>You have no groups yet.</Text>
                 }
                 renderItem={({ item }) => (
-                    <View style={styles.card}>
+                    <Pressable
+                        style={styles.card}
+                        onPress={() =>
+                            router.push({
+                                pathname: "/groups/[id]",
+                                params: {
+                                    id: item.id.toString(),
+                                    name: item.name,
+                                },
+                            })
+                        }
+                    >
                         <Text style={styles.groupName}>{item.name}</Text>
 
                         {item.description ? (
@@ -168,7 +181,7 @@ export default function GroupsScreen() {
 
                         <Text>Currency: {item.baseCurrency}</Text>
                         <Text>Owner: {item.ownerUsername}</Text>
-                    </View>
+                    </Pressable>
                 )}
             />
         </View>
