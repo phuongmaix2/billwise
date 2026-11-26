@@ -31,6 +31,18 @@ type GroupMemberResponse = {
     role: "OWNER" | "MEMBER";
     joinedAt: string;
 };
+type BalanceResponse = {
+    userId: number;
+    username: string;
+    balance: number;
+};
+
+type SpendingReportItem = {
+    label: string;
+    total: number;
+};
+
+type GroupTab = "EXPENSES" | "SUMMARY";
 
 export default function GroupDetailsScreen() {
     const { id, name, currency } = useLocalSearchParams<{
@@ -46,6 +58,10 @@ export default function GroupDetailsScreen() {
     const [memberIdentifier, setMemberIdentifier] = useState("");
     const [memberError, setMemberError] = useState("");
     const [isAddingMember, setIsAddingMember] = useState(false);
+    const [balances, setBalances] = useState<BalanceResponse[]>([]);
+    const [spending, setSpending] = useState<SpendingReportItem[]>([]);
+    const [activeTab, setActiveTab] =
+        useState<GroupTab>("EXPENSES");
 
     const loadGroupData = useCallback(async () => {
         if (!id) {
@@ -58,17 +74,30 @@ export default function GroupDetailsScreen() {
         setIsLoading(true);
 
         try {
-            const [expenseData, memberData] = await Promise.all([
+            const [
+                expenseData,
+                memberData,
+                balanceData,
+                spendingData,
+            ] = await Promise.all([
                 apiRequest<ExpenseResponse[]>(
                     `/api/v1/groups/${id}/expenses`
                 ),
                 apiRequest<GroupMemberResponse[]>(
                     `/api/v1/groups/${id}/members`
                 ),
+                apiRequest<BalanceResponse[]>(
+                    `/api/v1/groups/${id}/balances`
+                ),
+                apiRequest<SpendingReportItem[]>(
+                    `/api/v1/groups/${id}/reports/spending`
+                ),
             ]);
 
             setExpenses(expenseData);
             setMembers(memberData);
+            setBalances(balanceData);
+            setSpending(spendingData);
 
         } catch (error) {
             setError(
@@ -131,6 +160,11 @@ export default function GroupDetailsScreen() {
         }, [loadGroupData])
     );
 
+    const totalExpenses = expenses.reduce(
+        (total, expense) => total + Number(expense.amount),
+        0
+    );
+
     if (isLoading) {
         return (
             <View style={styles.center}>
@@ -155,71 +189,178 @@ export default function GroupDetailsScreen() {
                 options={{ title: name || "Group Details" }}
             />
             <FlatList
-                data={expenses}
+                data={activeTab === "EXPENSES" ? expenses : []}
                 contentInsetAdjustmentBehavior="automatic"
                 contentContainerStyle={styles.list}
                 keyExtractor={(item) => item.id.toString()}
                 keyboardShouldPersistTaps="handled"
                 ListHeaderComponent={
                     <View>
-                        <Text style={styles.sectionTitle}>Members</Text>
+                        <View style={styles.tabs}>
+                            <View style={styles.tabButton}>
+                                <Button
+                                    title="Expenses"
+                                    color={
+                                        activeTab === "EXPENSES"
+                                            ? "#2563eb"
+                                            : "#777"
+                                    }
+                                    onPress={() => setActiveTab("EXPENSES")}
+                                />
+                            </View>
 
-                        <View style={styles.memberForm}>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Username or email"
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                                value={memberIdentifier}
-                                onChangeText={setMemberIdentifier}
-                            />
-
-                            {memberError ? (
-                                <Text style={styles.memberError}>{memberError}</Text>
-                            ) : null}
-
-                            {isAddingMember ? (
-                                <ActivityIndicator color="#2563eb" />
-                            ) : (
-                                <Button title="Add Member" onPress={addMember} />
-                            )}
+                            <View style={styles.tabButton}>
+                                <Button
+                                    title="Summary"
+                                    color={
+                                        activeTab === "SUMMARY"
+                                            ? "#2563eb"
+                                            : "#777"
+                                    }
+                                    onPress={() => setActiveTab("SUMMARY")}
+                                />
+                            </View>
                         </View>
 
-                        {members.map((member) => (
-                            <View key={member.userId} style={styles.member}>
-                                <View>
-                                    <Text style={styles.memberName}>
-                                        {member.username}
-                                    </Text>
-                                    <Text style={styles.memberEmail}>
-                                        {member.email}
-                                    </Text>
+                        {activeTab === "EXPENSES" ? (
+                            <>
+                                <Text style={styles.sectionTitle}>Members</Text>
+
+                                <View style={styles.memberForm}>
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="Username or email"
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                        value={memberIdentifier}
+                                        onChangeText={setMemberIdentifier}
+                                    />
+
+                                    {memberError ? (
+                                        <Text style={styles.memberError}>
+                                            {memberError}
+                                        </Text>
+                                    ) : null}
+
+                                    {isAddingMember ? (
+                                        <ActivityIndicator color="#2563eb" />
+                                    ) : (
+                                        <Button
+                                            title="Add Member"
+                                            onPress={addMember}
+                                        />
+                                    )}
                                 </View>
 
-                                <Text style={styles.role}>{member.role}</Text>
-                            </View>
-                        ))}
+                                {members.map((member) => (
+                                    <View key={member.userId} style={styles.member}>
+                                        <View>
+                                            <Text style={styles.memberName}>
+                                                {member.username}
+                                            </Text>
+                                            <Text style={styles.memberEmail}>
+                                                {member.email}
+                                            </Text>
+                                        </View>
 
-                        <Button
-                            title="+ Add Expense"
-                            onPress={() =>
-                                router.push({
-                                    pathname: "/groups/addExpense",
-                                    params: {
-                                        id,
-                                        name: name || "",
-                                        currency: currency || "EUR",
-                                    },
-                                })
-                            }
-                        />
-                        <Text style={styles.sectionTitle}>Expenses</Text>
+                                        <Text style={styles.role}>{member.role}</Text>
+                                    </View>
+                                ))}
+
+                                <Button
+                                    title="+ Add Expense"
+                                    onPress={() =>
+                                        router.push({
+                                            pathname: "/groups/addExpense",
+                                            params: {
+                                                id,
+                                                name: name || "",
+                                                currency: currency || "EUR",
+                                            },
+                                        })
+                                    }
+                                />
+
+                                <Text style={styles.sectionTitle}>Expenses</Text>
+                            </>
+                        ) : (
+                            <>
+                                <Text style={styles.sectionTitle}>
+                                    Member Balances
+                                </Text>
+
+                                {balances.map((balance) => {
+                                    const value = Number(balance.balance);
+
+                                    return (
+                                        <View
+                                            key={balance.userId}
+                                            style={styles.summaryCard}
+                                        >
+                                            <Text style={styles.summaryName}>
+                                                {balance.username}
+                                            </Text>
+
+                                            <Text
+                                                style={[
+                                                    styles.balance,
+                                                    value < 0
+                                                        ? styles.negative
+                                                        : styles.positive,
+                                                ]}
+                                            >
+                                                {value > 0 ? "+" : ""}
+                                                {value.toFixed(2)} {currency || "EUR"}
+                                            </Text>
+                                        </View>
+                                    );
+                                })}
+
+                                <Text style={styles.sectionTitle}>
+                                    Spending by Category
+                                </Text>
+
+                                {spending.length === 0 ? (
+                                    <Text style={styles.empty}>
+                                        No spending data yet.
+                                    </Text>
+                                ) : (
+                                    spending.map((item) => (
+                                        <View
+                                            key={item.label}
+                                            style={styles.summaryCard}
+                                        >
+                                            <Text style={styles.summaryName}>
+                                                {item.label}
+                                            </Text>
+
+                                            <Text>
+                                                {Number(item.total).toFixed(2)}{" "}
+                                                {currency || "EUR"}
+                                            </Text>
+                                        </View>
+                                    ))
+                                )}
+
+                                <View style={styles.totalCard}>
+                                    <Text style={styles.totalText}>
+                                        Total Expenses
+                                    </Text>
+                                    <Text style={styles.totalText}>
+                                        {totalExpenses.toFixed(2)}{" "}
+                                        {currency || "EUR"}
+                                    </Text>
+                                </View>
+                            </>
+                        )}
                     </View>
                 }
                 ListEmptyComponent={
-                    <Text style={styles.empty}>
-                        This group has no expenses yet.
-                    </Text>
+                    activeTab === "EXPENSES" ? (
+                        <Text style={styles.empty}>
+                            This group has no expenses yet.
+                        </Text>
+                    ) : undefined
                 }
                 renderItem={({ item }) => (
                     <View style={styles.card}>
@@ -332,6 +473,48 @@ const styles = StyleSheet.create({
     memberError: {
         color: "red",
         marginBottom: 10,
+    },
+    tabs: {
+        flexDirection: "row",
+        gap: 10,
+        marginBottom: 16,
+    },
+    tabButton: {
+        flex: 1,
+    },
+    summaryCard: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: 14,
+        backgroundColor: "#f2f2f2",
+        borderRadius: 10,
+        marginBottom: 10,
+    },
+    summaryName: {
+        fontSize: 16,
+        fontWeight: "bold",
+    },
+    balance: {
+        fontWeight: "bold",
+    },
+    positive: {
+        color: "green",
+    },
+    negative: {
+        color: "red",
+    },
+    totalCard: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        padding: 16,
+        backgroundColor: "#dbeafe",
+        borderRadius: 10,
+        marginTop: 12,
+    },
+    totalText: {
+        fontSize: 17,
+        fontWeight: "bold",
     },
 });
 
