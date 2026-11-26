@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
     ActivityIndicator,
     Button,
@@ -8,7 +8,7 @@ import {
     View,
     TextInput,
 } from "react-native";
-import { Stack, useLocalSearchParams, router } from "expo-router";
+import { Stack, useLocalSearchParams, router, useFocusEffect } from "expo-router";
 import { apiRequest } from "../../services/api";
 
 type ExpenseResponse = {
@@ -31,22 +31,6 @@ type GroupMemberResponse = {
     role: "OWNER" | "MEMBER";
     joinedAt: string;
 };
-type ExpenseCategory =
-    | "FOOD"
-    | "TRANSPORT"
-    | "HOUSING"
-    | "SHOPPING"
-    | "ENTERTAINMENT"
-    | "OTHER";
-
-const categories: ExpenseCategory[] = [
-    "FOOD",
-    "TRANSPORT",
-    "HOUSING",
-    "SHOPPING",
-    "ENTERTAINMENT",
-    "OTHER",
-];
 
 export default function GroupDetailsScreen() {
     const { id, name, currency } = useLocalSearchParams<{
@@ -62,13 +46,6 @@ export default function GroupDetailsScreen() {
     const [memberIdentifier, setMemberIdentifier] = useState("");
     const [memberError, setMemberError] = useState("");
     const [isAddingMember, setIsAddingMember] = useState(false);
-    const [expenseDescription, setExpenseDescription] = useState("");
-    const [expenseAmount, setExpenseAmount] = useState("");
-    const [payerUsername, setPayerUsername] = useState("");
-    const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
-    const [category, setCategory] = useState<ExpenseCategory>("OTHER");
-    const [expenseError, setExpenseError] = useState("");
-    const [isCreatingExpense, setIsCreatingExpense] = useState(false);
 
     const loadGroupData = useCallback(async () => {
         if (!id) {
@@ -92,14 +69,6 @@ export default function GroupDetailsScreen() {
 
             setExpenses(expenseData);
             setMembers(memberData);
-
-            setPayerUsername((currentPayer) =>
-                currentPayer || memberData[0]?.username || ""
-            );
-
-            setSelectedParticipants(
-                memberData.map((member) => member.username)
-            );
 
         } catch (error) {
             setError(
@@ -144,11 +113,6 @@ export default function GroupDetailsScreen() {
                 newMember,
             ]);
 
-            setSelectedParticipants((currentParticipants) => [
-                ...currentParticipants,
-                newMember.username,
-            ]);
-
             setMemberIdentifier("");
         } catch (error) {
             setMemberError(
@@ -161,97 +125,11 @@ export default function GroupDetailsScreen() {
         }
     };
 
-    const toggleParticipant = (username: string) => {
-        setSelectedParticipants((currentParticipants) =>
-            currentParticipants.includes(username)
-                ? currentParticipants.filter(
-                    (participant) => participant !== username
-                )
-                : [...currentParticipants, username]
-        );
-    };
-
-    const createExpense = async () => {
-        const description = expenseDescription.trim();
-        const numericAmount = Number(
-            expenseAmount.replace(",", ".")
-        );
-
-        if (!description) {
-            setExpenseError("Enter an expense description.");
-            return;
-        }
-
-        if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
-            setExpenseError("Enter a valid amount.");
-            return;
-        }
-
-        if (!payerUsername) {
-            setExpenseError("Select who paid.");
-            return;
-        }
-
-        if (selectedParticipants.length === 0) {
-            setExpenseError("Select at least one participant.");
-            return;
-        }
-
-        if (!id) {
-            setExpenseError("Group ID is missing.");
-            return;
-        }
-
-        const today = new Date();
-        const expenseDate = [
-            today.getFullYear(),
-            String(today.getMonth() + 1).padStart(2, "0"),
-            String(today.getDate()).padStart(2, "0"),
-        ].join("-");
-
-        setExpenseError("");
-        setIsCreatingExpense(true);
-
-        try {
-            const newExpense = await apiRequest<ExpenseResponse>(
-                `/api/v1/groups/${id}/expenses`,
-                {
-                    method: "POST",
-                    body: JSON.stringify({
-                        payerUsernameOrEmail: payerUsername,
-                        participantUsernamesOrEmails: selectedParticipants,
-                        description,
-                        amount: numericAmount,
-                        currency: currency || "EUR",
-                        expenseDate,
-                        category,
-                        splitMethod: "EQUAL",
-                    }),
-                }
-            );
-
-            setExpenses((currentExpenses) => [
-                newExpense,
-                ...currentExpenses,
-            ]);
-
-            setExpenseDescription("");
-            setExpenseAmount("");
-            setCategory("OTHER");
-        } catch (error) {
-            setExpenseError(
-                error instanceof Error
-                    ? error.message
-                    : "Could not create expense."
-            );
-        } finally {
-            setIsCreatingExpense(false);
-        }
-    };
-
-    useEffect(() => {
-        void loadGroupData();
-    }, [loadGroupData]);
+    useFocusEffect(
+        useCallback(() => {
+            void loadGroupData();
+        }, [loadGroupData])
+    );
 
     if (isLoading) {
         return (
@@ -276,7 +154,6 @@ export default function GroupDetailsScreen() {
             <Stack.Screen
                 options={{ title: name || "Group Details" }}
             />
-
             <FlatList
                 data={expenses}
                 contentInsetAdjustmentBehavior="automatic"
@@ -336,73 +213,6 @@ export default function GroupDetailsScreen() {
                                 })
                             }
                         />
-
-                        <View style={styles.expenseForm}>
-                            <Text style={styles.sectionTitle}>Add Expense</Text>
-
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Description"
-                                value={expenseDescription}
-                                onChangeText={setExpenseDescription}
-                            />
-
-                            <TextInput
-                                style={styles.input}
-                                placeholder={`Amount (${currency || "EUR"})`}
-                                keyboardType="decimal-pad"
-                                value={expenseAmount}
-                                onChangeText={setExpenseAmount}
-                            />
-
-                            <Text style={styles.label}>Paid by</Text>
-
-                            {members.map((member) => (
-                                <View key={member.userId} style={styles.optionButton}>
-                                    <Button
-                                        title={`${payerUsername === member.username ? "✓ " : ""}${member.username}`}
-                                        onPress={() => setPayerUsername(member.username)}
-                                    />
-                                </View>
-                            ))}
-
-                            <Text style={styles.label}>Category</Text>
-
-                            {categories.map((item) => (
-                                <View key={item} style={styles.optionButton}>
-                                    <Button
-                                        title={`${category === item ? "✓ " : ""}${item}`}
-                                        onPress={() => setCategory(item)}
-                                    />
-                                </View>
-                            ))}
-
-                            <Text style={styles.label}>Split between</Text>
-
-                            {members.map((member) => (
-                                <View key={member.userId} style={styles.optionButton}>
-                                    <Button
-                                        title={`${selectedParticipants.includes(member.username) ? "✓ " : ""}${member.username}`}
-                                        onPress={() => toggleParticipant(member.username)}
-                                    />
-                                </View>
-                            ))}
-
-                            <Text style={styles.helper}>
-                                {selectedParticipants.length} of {members.length} selected
-                            </Text>
-
-                            {expenseError ? (
-                                <Text style={styles.memberError}>{expenseError}</Text>
-                            ) : null}
-
-                            {isCreatingExpense ? (
-                                <ActivityIndicator color="#2563eb" />
-                            ) : (
-                                <Button title="Create Expense" onPress={createExpense} />
-                            )}
-                        </View>
-
                         <Text style={styles.sectionTitle}>Expenses</Text>
                     </View>
                 }
@@ -522,27 +332,6 @@ const styles = StyleSheet.create({
     memberError: {
         color: "red",
         marginBottom: 10,
-    },
-    expenseForm: {
-        padding: 14,
-        backgroundColor: "#f2f2f2",
-        borderRadius: 10,
-        marginTop: 16,
-        marginBottom: 20,
-    },
-    label: {
-        fontSize: 16,
-        fontWeight: "bold",
-        marginTop: 12,
-        marginBottom: 8,
-    },
-    optionButton: {
-        marginBottom: 6,
-    },
-    helper: {
-        color: "#666",
-        marginTop: 4,
-        marginBottom: 12,
     },
 });
 

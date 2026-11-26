@@ -16,7 +16,7 @@ export default function RootLayout() {
                 options={{ title: "Group Details" }}
             />
             <Stack.Screen
-                name="groups/add-expense"
+                name="groups/addExpense"
                 options={{ title: "Add Expense" }}
             />
         </Stack>
