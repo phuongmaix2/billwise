@@ -6,6 +6,7 @@ import {
     StyleSheet,
     Text,
     View,
+    TextInput,
 } from "react-native";
 
 import { apiRequest } from "../../services/api";
@@ -24,6 +25,10 @@ export default function GroupsScreen() {
     const [groups, setGroups] = useState<GroupResponse[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState("");
+    const [groupName, setGroupName] = useState("");
+    const [description, setDescription] = useState("");
+    const [formError, setFormError] = useState("");
+    const [isCreating, setIsCreating] = useState(false);
 
     const loadGroups = useCallback(async () => {
         setError("");
@@ -45,6 +50,48 @@ export default function GroupsScreen() {
             setIsLoading(false);
         }
     }, []);
+
+    const createGroup = async () => {
+        const name = groupName.trim();
+
+        if (!name) {
+            setFormError("Enter a group name.");
+            return;
+        }
+
+        setFormError("");
+        setIsCreating(true);
+
+        try {
+            const createdGroup = await apiRequest<GroupResponse>(
+                "/api/v1/groups",
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        name,
+                        description: description.trim(),
+                        baseCurrency: "EUR",
+                    }),
+                }
+            );
+
+            setGroups((currentGroups) => [
+                createdGroup,
+                ...currentGroups,
+            ]);
+
+            setGroupName("");
+            setDescription("");
+        } catch (error) {
+            setFormError(
+                error instanceof Error
+                    ? error.message
+                    : "Could not create the group."
+            );
+        } finally {
+            setIsCreating(false);
+        }
+    };
 
     useEffect(() => {
         void loadGroups();
@@ -75,6 +122,37 @@ export default function GroupsScreen() {
                 contentContainerStyle={styles.list}
                 keyExtractor={(item) => item.id.toString()}
                 contentInsetAdjustmentBehavior="automatic"
+                keyboardShouldPersistTaps="handled"
+                ListHeaderComponent={
+                    <View style={styles.form}>
+                        <Text style={styles.formTitle}>Create Group</Text>
+
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Group name"
+                            value={groupName}
+                            onChangeText={setGroupName}
+                        />
+
+                        <TextInput
+                            style={[styles.input, styles.descriptionInput]}
+                            placeholder="Description (optional)"
+                            multiline
+                            value={description}
+                            onChangeText={setDescription}
+                        />
+
+                        {formError ? (
+                            <Text style={styles.formError}>{formError}</Text>
+                        ) : null}
+
+                        {isCreating ? (
+                            <ActivityIndicator color="#2563eb" />
+                        ) : (
+                            <Button title="Create Group" onPress={createGroup} />
+                        )}
+                    </View>
+                }
                 ListEmptyComponent={
                     <Text style={styles.empty}>You have no groups yet.</Text>
                 }
@@ -141,5 +219,32 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingTop: 16,
         paddingBottom: 24,
+    },
+    form: {
+        padding: 16,
+        backgroundColor: "#f2f2f2",
+        borderRadius: 10,
+        marginBottom: 20,
+    },
+    formTitle: {
+        fontSize: 20,
+        fontWeight: "bold",
+        marginBottom: 12,
+    },
+    input: {
+        borderWidth: 1,
+        borderColor: "#ccc",
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 12,
+        backgroundColor: "#fff",
+    },
+    descriptionInput: {
+        minHeight: 80,
+        textAlignVertical: "top",
+    },
+    formError: {
+        color: "red",
+        marginBottom: 12,
     },
 });
