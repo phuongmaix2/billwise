@@ -8,7 +8,7 @@ import {
     View,
     TextInput,
 } from "react-native";
-import { Stack, useLocalSearchParams } from "expo-router";
+import { Stack, useLocalSearchParams, router } from "expo-router";
 import { apiRequest } from "../../services/api";
 
 type ExpenseResponse = {
@@ -322,6 +322,20 @@ export default function GroupDetailsScreen() {
                                 <Text style={styles.role}>{member.role}</Text>
                             </View>
                         ))}
+
+                        <Button
+                            title="+ Add Expense"
+                            onPress={() =>
+                                router.push({
+                                    pathname: "/groups/addExpense",
+                                    params: {
+                                        id,
+                                        name: name || "",
+                                        currency: currency || "EUR",
+                                    },
+                                })
+                            }
+                        />
 
                         <View style={styles.expenseForm}>
                             <Text style={styles.sectionTitle}>Add Expense</Text>
