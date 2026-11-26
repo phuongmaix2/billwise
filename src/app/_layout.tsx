@@ -7,6 +7,11 @@ export default function RootLayout() {
                 name="index"
                 options={{ title: "BillWise" }}
             />
+
+            <Stack.Screen
+                name="groups/index"
+                options={{ title: "My Groups" }}
+            />
         </Stack>
     );
 }

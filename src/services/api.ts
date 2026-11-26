@@ -23,7 +23,7 @@ export async function apiRequest<T>(
     });
 
     const contentType = response.headers.get("content-type");
-    const isJson = contentType?.includes("application/json");
+    const isJson = contentType?.includes("json");
 
     const body = isJson
         ? await response.json()
@@ -36,6 +36,13 @@ export async function apiRequest<T>(
                 : body;
 
         throw new Error(message || `Request failed: ${response.status}`);
+    }
+    if (!isJson) {
+        throw new Error(
+            response.redirected
+                ? "Your session expired. Please log in again."
+                : "The server did not return JSON."
+        );
     }
 
     return body as T;
