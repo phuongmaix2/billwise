@@ -6,6 +6,7 @@ import {
     StyleSheet,
     Text,
     View,
+    TextInput,
 } from "react-native";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { apiRequest } from "../../services/api";
@@ -41,6 +42,9 @@ export default function GroupDetailsScreen() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState("");
     const [members, setMembers] = useState<GroupMemberResponse[]>([]);
+    const [memberIdentifier, setMemberIdentifier] = useState("");
+    const [memberError, setMemberError] = useState("");
+    const [isAddingMember, setIsAddingMember] = useState(false);
 
     const loadGroupData = useCallback(async () => {
         if (!id) {
@@ -75,6 +79,50 @@ export default function GroupDetailsScreen() {
         }
     }, [id]);
 
+    const addMember = async () => {
+        const value = memberIdentifier.trim();
+
+        if (!value) {
+            setMemberError("Enter a username or email.");
+            return;
+        }
+
+        if (!id) {
+            setMemberError("Group ID is missing.");
+            return;
+        }
+
+        setMemberError("");
+        setIsAddingMember(true);
+
+        try {
+            const newMember = await apiRequest<GroupMemberResponse>(
+                `/api/v1/groups/${id}/members`,
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        usernameOrEmail: value,
+                    }),
+                }
+            );
+
+            setMembers((currentMembers) => [
+                ...currentMembers,
+                newMember,
+            ]);
+
+            setMemberIdentifier("");
+        } catch (error) {
+            setMemberError(
+                error instanceof Error
+                    ? error.message
+                    : "Could not add member."
+            );
+        } finally {
+            setIsAddingMember(false);
+        }
+    };
+
     useEffect(() => {
         void loadGroupData();
     }, [loadGroupData]);
@@ -108,9 +156,31 @@ export default function GroupDetailsScreen() {
                 contentInsetAdjustmentBehavior="automatic"
                 contentContainerStyle={styles.list}
                 keyExtractor={(item) => item.id.toString()}
+                keyboardShouldPersistTaps="handled"
                 ListHeaderComponent={
                     <View>
                         <Text style={styles.sectionTitle}>Members</Text>
+
+                        <View style={styles.memberForm}>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Username or email"
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                                value={memberIdentifier}
+                                onChangeText={setMemberIdentifier}
+                            />
+
+                            {memberError ? (
+                                <Text style={styles.memberError}>{memberError}</Text>
+                            ) : null}
+
+                            {isAddingMember ? (
+                                <ActivityIndicator color="#2563eb" />
+                            ) : (
+                                <Button title="Add Member" onPress={addMember} />
+                            )}
+                        </View>
 
                         {members.map((member) => (
                             <View key={member.userId} style={styles.member}>
@@ -228,6 +298,24 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: "#666",
         marginTop: 2,
+    },
+    memberForm: {
+        padding: 14,
+        backgroundColor: "#f2f2f2",
+        borderRadius: 10,
+        marginBottom: 16,
+    },
+    input: {
+        borderWidth: 1,
+        borderColor: "#ccc",
+        borderRadius: 8,
+        padding: 12,
+        backgroundColor: "#fff",
+        marginBottom: 10,
+    },
+    memberError: {
+        color: "red",
+        marginBottom: 10,
     },
 });
 
