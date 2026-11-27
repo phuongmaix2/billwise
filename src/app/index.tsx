@@ -102,7 +102,15 @@ export default function LoginScreen() {
             ) : (
                 <Button title="Log In" onPress={login} />
             )}
+
+            <View style={styles.registerButton}>
+                <Button
+                    title="Create Account"
+                    onPress={() => router.push("/register")}
+                />
+            </View>
         </View>
+
     );
 }
 
@@ -140,5 +148,8 @@ const styles = StyleSheet.create({
         color: "green",
         textAlign: "center",
         marginBottom: 12,
+    },
+    registerButton: {
+        marginTop: 12,
     },
 });

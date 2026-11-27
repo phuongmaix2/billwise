@@ -19,6 +19,10 @@ export default function RootLayout() {
                 name="groups/addExpense"
                 options={{ title: "Add Expense" }}
             />
+            <Stack.Screen
+                name="register"
+                options={{ title: "Create Account" }}
+            />
         </Stack>
     );
 }

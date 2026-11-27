@@ -30,12 +30,35 @@ export async function apiRequest<T>(
         : await response.text();
 
     if (!response.ok) {
-        const message =
-            typeof body === "object" && body !== null
-                ? body.detail || body.message
-                : body;
+        if (typeof body === "object" && body !== null) {
+            const problem = body as {
+                detail?: string;
+                message?: string;
+                errors?: Record<string, string>;
+            };
 
-        throw new Error(message || `Request failed: ${response.status}`);
+            const fieldErrors = problem.errors
+                ? Object.values(problem.errors)
+                : [];
+
+            if (fieldErrors.length > 0) {
+                throw new Error(
+                    fieldErrors
+                        .map((message) => `• ${message}`)
+                        .join("\n")
+                );
+            }
+
+            throw new Error(
+                problem.detail ||
+                problem.message ||
+                `Request failed: ${response.status}`
+            );
+        }
+
+        throw new Error(
+            body || `Request failed: ${response.status}`
+        );
     }
     if (!isJson) {
         throw new Error(
