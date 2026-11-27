@@ -11,6 +11,7 @@ import {
 import {
     router,
     Stack,
+    useFocusEffect,
     useLocalSearchParams,
 } from "expo-router";
 
@@ -104,9 +105,11 @@ export default function AddExpenseScreen() {
         }
     }, [id]);
 
-    useEffect(() => {
-        void loadMembers();
-    }, [loadMembers]);
+    useFocusEffect(
+        useCallback(() => {
+            void loadMembers();
+        }, [loadMembers])
+    );
 
     const toggleParticipant = (username: string) => {
         setParticipants((currentParticipants) =>

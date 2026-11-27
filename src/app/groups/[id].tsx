@@ -7,6 +7,7 @@ import {
     Text,
     View,
     TextInput,
+    Alert
 } from "react-native";
 import { Stack, useLocalSearchParams, router, useFocusEffect } from "expo-router";
 import { apiRequest } from "../../services/api";
@@ -47,6 +48,11 @@ type DebtSuggestion = {
     from: string;
     to: string;
     amount: number;
+};
+type UserResponse = {
+    id: number;
+    username: string;
+    email: string;
 };
 
 function calculateDebts(
@@ -122,6 +128,10 @@ export default function GroupDetailsScreen() {
     const [spending, setSpending] = useState<SpendingReportItem[]>([]);
     const [activeTab, setActiveTab] =
         useState<GroupTab>("EXPENSES");
+    const [currentUser, setCurrentUser] =
+        useState<UserResponse | null>(null);
+    const [removingMemberId, setRemovingMemberId] =
+        useState<number | null>(null);
 
     const loadGroupData = useCallback(async () => {
         if (!id) {
@@ -139,6 +149,7 @@ export default function GroupDetailsScreen() {
                 memberData,
                 balanceData,
                 spendingData,
+                userData,
             ] = await Promise.all([
                 apiRequest<ExpenseResponse[]>(
                     `/api/v1/groups/${id}/expenses`
@@ -152,12 +163,16 @@ export default function GroupDetailsScreen() {
                 apiRequest<SpendingReportItem[]>(
                     `/api/v1/groups/${id}/reports/spending`
                 ),
+                apiRequest<UserResponse>(
+                    "/api/v1/auth/me"
+                ),
             ]);
 
             setExpenses(expenseData);
             setMembers(memberData);
             setBalances(balanceData);
             setSpending(spendingData);
+            setCurrentUser(userData);
 
         } catch (error) {
             setError(
@@ -214,6 +229,69 @@ export default function GroupDetailsScreen() {
         }
     };
 
+    const removeMember = async (
+        member: GroupMemberResponse
+    ) => {
+        if (!id) {
+            Alert.alert("Error", "Group ID is missing.");
+            return;
+        }
+
+        setRemovingMemberId(member.userId);
+
+        try {
+            await apiRequest<void>(
+                `/api/v1/groups/${id}/members/${member.userId}`,
+                {
+                    method: "DELETE",
+                }
+            );
+
+            setMembers((currentMembers) =>
+                currentMembers.filter(
+                    (item) => item.userId !== member.userId
+                )
+            );
+
+            setBalances((currentBalances) =>
+                currentBalances.filter(
+                    (item) => item.userId !== member.userId
+                )
+            );
+        } catch (error) {
+            Alert.alert(
+                "Could not remove member",
+                error instanceof Error
+                    ? error.message
+                    : "Please try again."
+            );
+        } finally {
+            setRemovingMemberId(null);
+        }
+    };
+
+    const confirmRemoveMember = (
+        member: GroupMemberResponse
+    ) => {
+        Alert.alert(
+            "Remove member",
+            `Remove ${member.username} from this group?`,
+            [
+                {
+                    text: "Cancel",
+                    style: "cancel",
+                },
+                {
+                    text: "Remove",
+                    style: "destructive",
+                    onPress: () => {
+                        void removeMember(member);
+                    },
+                },
+            ]
+        );
+    };
+
     useFocusEffect(
         useCallback(() => {
             void loadGroupData();
@@ -225,6 +303,11 @@ export default function GroupDetailsScreen() {
         0
     );
     const debtSuggestions = calculateDebts(balances);
+    const isCurrentUserOwner = members.some(
+        (member) =>
+            member.userId === currentUser?.id &&
+            member.role === "OWNER"
+    );
 
     if (isLoading) {
         return (
@@ -324,7 +407,29 @@ export default function GroupDetailsScreen() {
                                             </Text>
                                         </View>
 
-                                        <Text style={styles.role}>{member.role}</Text>
+                                        <View style={styles.memberActions}>
+                                            <Text style={styles.role}>
+                                                {member.role}
+                                            </Text>
+
+                                            {isCurrentUserOwner &&
+                                                member.role !== "OWNER" ? (
+                                                removingMemberId === member.userId ? (
+                                                    <ActivityIndicator
+                                                        size="small"
+                                                        color="#dc2626"
+                                                    />
+                                                ) : (
+                                                    <Button
+                                                        title="Remove"
+                                                        color="#dc2626"
+                                                        onPress={() =>
+                                                            confirmRemoveMember(member)
+                                                        }
+                                                    />
+                                                )
+                                            ) : null}
+                                        </View>
                                     </View>
                                 ))}
 
@@ -622,6 +727,10 @@ const styles = StyleSheet.create({
         color: "#ea580c",
         fontWeight: "bold",
         marginTop: 6,
+    },
+    memberActions: {
+        alignItems: "flex-end",
+        gap: 6,
     },
 });
 

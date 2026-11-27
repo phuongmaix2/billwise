@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
     ActivityIndicator,
     Button,
@@ -12,7 +12,7 @@ import {
 } from "react-native";
 
 import { apiRequest } from "../../services/api";
-import { router, Stack } from "expo-router";
+import { router, Stack, useFocusEffect } from "expo-router";
 
 type GroupResponse = {
     id: number;
@@ -121,9 +121,11 @@ export default function GroupsScreen() {
         }
     };
 
-    useEffect(() => {
-        void loadGroups();
-    }, [loadGroups]);
+    useFocusEffect(
+        useCallback(() => {
+            void loadGroups();
+        }, [loadGroups])
+    );
 
     if (isLoading) {
         return (
