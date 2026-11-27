@@ -43,6 +43,66 @@ type SpendingReportItem = {
 };
 
 type GroupTab = "EXPENSES" | "SUMMARY";
+type DebtSuggestion = {
+    from: string;
+    to: string;
+    amount: number;
+};
+
+function calculateDebts(
+    balances: BalanceResponse[]
+): DebtSuggestion[] {
+    const creditors = balances
+        .map((item) => ({
+            username: item.username,
+            amount: Number(item.balance),
+        }))
+        .filter((item) => item.amount > 0.005);
+
+    const debtors = balances
+        .map((item) => ({
+            username: item.username,
+            amount: -Number(item.balance),
+        }))
+        .filter((item) => item.amount > 0.005);
+
+    const debts: DebtSuggestion[] = [];
+
+    let debtorIndex = 0;
+    let creditorIndex = 0;
+
+    while (
+        debtorIndex < debtors.length &&
+        creditorIndex < creditors.length
+    ) {
+        const debtor = debtors[debtorIndex];
+        const creditor = creditors[creditorIndex];
+
+        const amount = Math.min(
+            debtor.amount,
+            creditor.amount
+        );
+
+        debts.push({
+            from: debtor.username,
+            to: creditor.username,
+            amount,
+        });
+
+        debtor.amount -= amount;
+        creditor.amount -= amount;
+
+        if (debtor.amount <= 0.005) {
+            debtorIndex += 1;
+        }
+
+        if (creditor.amount <= 0.005) {
+            creditorIndex += 1;
+        }
+    }
+
+    return debts;
+}
 
 export default function GroupDetailsScreen() {
     const { id, name, currency } = useLocalSearchParams<{
@@ -164,6 +224,7 @@ export default function GroupDetailsScreen() {
         (total, expense) => total + Number(expense.amount),
         0
     );
+    const debtSuggestions = calculateDebts(balances);
 
     if (isLoading) {
         return (
@@ -315,6 +376,38 @@ export default function GroupDetailsScreen() {
                                         </View>
                                     );
                                 })}
+
+                                <Text style={styles.sectionTitle}>
+                                    Who Owes Whom
+                                </Text>
+
+                                {debtSuggestions.length === 0 ? (
+                                    <Text style={styles.empty}>
+                                        Everyone is settled up.
+                                    </Text>
+                                ) : (
+                                    debtSuggestions.map((debt, index) => (
+                                        <View
+                                            key={`${debt.from}-${debt.to}-${index}`}
+                                            style={styles.debtCard}
+                                        >
+                                            <Text>
+                                                <Text style={styles.debtName}>
+                                                    {debt.from}
+                                                </Text>
+                                                {" owes "}
+                                                <Text style={styles.debtName}>
+                                                    {debt.to}
+                                                </Text>
+                                            </Text>
+
+                                            <Text style={styles.debtAmount}>
+                                                {debt.amount.toFixed(2)}{" "}
+                                                {currency || "EUR"}
+                                            </Text>
+                                        </View>
+                                    ))
+                                )}
 
                                 <Text style={styles.sectionTitle}>
                                     Spending by Category
@@ -515,6 +608,20 @@ const styles = StyleSheet.create({
     totalText: {
         fontSize: 17,
         fontWeight: "bold",
+    },
+    debtCard: {
+        padding: 14,
+        backgroundColor: "#fff7ed",
+        borderRadius: 10,
+        marginBottom: 10,
+    },
+    debtName: {
+        fontWeight: "bold",
+    },
+    debtAmount: {
+        color: "#ea580c",
+        fontWeight: "bold",
+        marginTop: 6,
     },
 });
 
