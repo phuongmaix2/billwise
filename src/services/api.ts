@@ -21,6 +21,9 @@ export async function apiRequest<T>(
         headers,
         credentials: "include",
     });
+    if (response.status === 204) {
+        return undefined as T;
+    }
 
     const contentType = response.headers.get("content-type");
     const isJson = contentType?.includes("json");

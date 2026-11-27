@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
     ActivityIndicator,
     Button,
@@ -24,7 +24,8 @@ type UserResponse = {
 export default function LoginScreen() {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
-    const [user, setUser] = useState<UserResponse | null>(null);
+    const [isCheckingSession, setIsCheckingSession] =
+        useState(true);
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
 
@@ -38,7 +39,7 @@ export default function LoginScreen() {
         setIsLoading(true);
 
         try {
-            const loggedInUser = await apiRequest<UserResponse>(
+            await apiRequest<UserResponse>(
                 "/api/v1/auth/login",
                 {
                     method: "POST",
@@ -48,8 +49,6 @@ export default function LoginScreen() {
                     }),
                 }
             );
-
-            setUser(loggedInUser);
             setPassword("");
             router.replace("/groups");
         } catch (error) {
@@ -63,12 +62,28 @@ export default function LoginScreen() {
         }
     };
 
-    if (user) {
+    useEffect(() => {
+        const checkSession = async () => {
+            try {
+                await apiRequest<UserResponse>("/api/v1/auth/me");
+                router.replace("/groups");
+            } catch {
+                // No active session, show the login form.
+            } finally {
+                setIsCheckingSession(false);
+            }
+        };
+
+        void checkSession();
+    }, []);
+
+    if (isCheckingSession) {
         return (
             <View style={styles.container}>
-                <Text style={styles.title}>Welcome, {user.username}!</Text>
-                <Text style={styles.success}>Login successful.</Text>
-                <Text>Currency: {user.preferredCurrency}</Text>
+                <ActivityIndicator size="large" color="#2563eb" />
+                <Text style={styles.checkingText}>
+                    Checking your session...
+                </Text>
             </View>
         );
     }
@@ -144,10 +159,10 @@ const styles = StyleSheet.create({
         color: "red",
         marginBottom: 12,
     },
-    success: {
-        color: "green",
+    checkingText: {
         textAlign: "center",
-        marginBottom: 12,
+        color: "#666",
+        marginTop: 12,
     },
     registerButton: {
         marginTop: 12,

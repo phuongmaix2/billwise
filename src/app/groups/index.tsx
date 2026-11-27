@@ -8,10 +8,11 @@ import {
     View,
     TextInput,
     Pressable,
+    Alert,
 } from "react-native";
 
 import { apiRequest } from "../../services/api";
-import { router } from "expo-router";
+import { router, Stack } from "expo-router";
 
 type GroupResponse = {
     id: number;
@@ -31,6 +32,7 @@ export default function GroupsScreen() {
     const [description, setDescription] = useState("");
     const [formError, setFormError] = useState("");
     const [isCreating, setIsCreating] = useState(false);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     const loadGroups = useCallback(async () => {
         setError("");
@@ -95,6 +97,30 @@ export default function GroupsScreen() {
         }
     };
 
+    const logout = async () => {
+        setIsLoggingOut(true);
+
+        try {
+            await apiRequest<void>(
+                "/api/v1/auth/logout",
+                {
+                    method: "POST",
+                }
+            );
+
+            router.replace("/");
+        } catch (error) {
+            Alert.alert(
+                "Logout failed",
+                error instanceof Error
+                    ? error.message
+                    : "Could not log out."
+            );
+        } finally {
+            setIsLoggingOut(false);
+        }
+    };
+
     useEffect(() => {
         void loadGroups();
     }, [loadGroups]);
@@ -119,6 +145,20 @@ export default function GroupsScreen() {
 
     return (
         <View style={styles.container}>
+            <Stack.Screen
+                options={{
+                    title: "My Groups",
+                    headerRight: () =>
+                        isLoggingOut ? (
+                            <ActivityIndicator
+                                size="small"
+                                color="#2563eb"
+                            />
+                        ) : (
+                            <Button title="Log Out" onPress={logout} />
+                        ),
+                }}
+            />
             <FlatList
                 data={groups}
                 contentContainerStyle={styles.list}
@@ -172,19 +212,19 @@ export default function GroupsScreen() {
                             })
                         }
                     >
-            <Text style={styles.groupName}>{item.name}</Text>
+                        <Text style={styles.groupName}>{item.name}</Text>
 
-            {item.description ? (
-                <Text style={styles.description}>
-                    {item.description}
-                </Text>
-            ) : null}
+                        {item.description ? (
+                            <Text style={styles.description}>
+                                {item.description}
+                            </Text>
+                        ) : null}
 
-            <Text>Currency: {item.baseCurrency}</Text>
-            <Text>Owner: {item.ownerUsername}</Text>
-        </Pressable>
-    )
-}
+                        <Text>Currency: {item.baseCurrency}</Text>
+                        <Text>Owner: {item.ownerUsername}</Text>
+                    </Pressable>
+                )
+                }
             />
         </View >
     );
