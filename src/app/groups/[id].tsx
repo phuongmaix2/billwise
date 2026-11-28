@@ -132,6 +132,8 @@ export default function GroupDetailsScreen() {
         useState<UserResponse | null>(null);
     const [removingMemberId, setRemovingMemberId] =
         useState<number | null>(null);
+    const [isDeletingGroup, setIsDeletingGroup] =
+        useState(false);
 
     const loadGroupData = useCallback(async () => {
         if (!id) {
@@ -286,6 +288,55 @@ export default function GroupDetailsScreen() {
                     style: "destructive",
                     onPress: () => {
                         void removeMember(member);
+                    },
+                },
+            ]
+        );
+    };
+
+    const deleteGroup = async () => {
+        if (!id) {
+            Alert.alert("Error", "Group ID is missing.");
+            return;
+        }
+
+        setIsDeletingGroup(true);
+
+        try {
+            await apiRequest<void>(
+                `/api/v1/groups/${id}`,
+                {
+                    method: "DELETE",
+                }
+            );
+
+            router.replace("/groups");
+        } catch (error) {
+            Alert.alert(
+                "Could not delete group",
+                error instanceof Error
+                    ? error.message
+                    : "Please try again."
+            );
+        } finally {
+            setIsDeletingGroup(false);
+        }
+    };
+
+    const confirmDeleteGroup = () => {
+        Alert.alert(
+            "Delete group",
+            "This will permanently delete the group and all of its expenses. This action cannot be undone.",
+            [
+                {
+                    text: "Cancel",
+                    style: "cancel",
+                },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: () => {
+                        void deleteGroup();
                     },
                 },
             ]
@@ -560,6 +611,23 @@ export default function GroupDetailsScreen() {
                         </Text>
                     ) : undefined
                 }
+                ListFooterComponent={
+                    isCurrentUserOwner ? (
+                        <View style={styles.deleteGroupSection}>
+                            {isDeletingGroup ? (
+                                <ActivityIndicator
+                                    color="#dc2626"
+                                />
+                            ) : (
+                                <Button
+                                    title="Delete Group"
+                                    color="#dc2626"
+                                    onPress={confirmDeleteGroup}
+                                />
+                            )}
+                        </View>
+                    ) : undefined
+                }
                 renderItem={({ item }) => (
                     <View style={styles.card}>
                         <Text style={styles.expenseName}>
@@ -731,6 +799,12 @@ const styles = StyleSheet.create({
     memberActions: {
         alignItems: "flex-end",
         gap: 6,
+    },
+    deleteGroupSection: {
+        marginTop: 24,
+        paddingTop: 20,
+        borderTopWidth: 1,
+        borderTopColor: "#ddd",
     },
 });
 
